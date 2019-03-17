@@ -1,0 +1,66 @@
+# file: development
+[all:vars]
+
+ansible_connection = ssh
+ansible_private_key_file=/var/jenkins_home/.ssh/id_rsa
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+ansible_user=yavire
+
+[servers]
+devyav01        ansible_host=192.168.11.133
+devyavmaster    ansible_host=192.168.11.134
+dvyavubuntu     ansible_host=192.168.11.137
+dvorlin72       ansible_host=192.168.11.128
+
+dvyavtest1      ansible_host=192.168.11.200
+
+pvyavap01       ansible_host=192.168.11.210
+pvyavap02       ansible_host=192.168.11.211
+
+pvyavweb01      ansible_host=192.168.11.220
+pvyavweb02      ansible_host=192.168.11.221
+
+dawsubuntu      ansible_host=34.245.225.106
+pfyavap02       ansible_host=192.168.0.203
+pvyavmstr       ansible_host=192.168.11.130
+
+dvjenkgitlab   ansible_host=192.168.11.131 ansible_connection=local
+
+
+[agents]
+devyavmaster
+dvyavubuntu
+dvorlin72
+
+dvyavtest1
+
+pvyavap01
+pvyavap02
+
+pvyavweb01
+pvyavweb02
+
+dawsubuntu
+pfyavap02
+pvyavmstr
+
+[jenkins]
+dvjenkgitlab
+
+#dvorlin72       ansible_host=192.168.11.128 http_port=80 maxRequestsPerChild=808 (Ejemplo con variables particulares)
+
+[ubuntu]
+dvyavubuntu
+
+[centos6]
+dvyavtest1
+
+[centos7]
+devyavmaster
+
+[oraclelinux7]
+dvorlin72
+
+[master]
+devyavmaster
+
