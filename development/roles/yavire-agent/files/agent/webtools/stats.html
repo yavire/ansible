@@ -1,0 +1,14 @@
+<html> <head> <title>Estadisticas Webs</title> </head>
+<script language=javascript> function stat(URI) {window.open(URI,"Stats","resizable=yes,scrollbars=yes");} </script>
+<body><form name='stat' method='post' action='javascript:stat("/stats/awstats.pl?config="+document.stat.config.value)'>
+<select name='config' title='Select a server'>
+<option name='config' value="Jblank">Jblank</option>
+<option name='config' value="Ublank">Ublank</option>
+<option name='config' value="WL11-integracionGNF-weblogic-zeus1_1">WL11-integracionGNF-weblogic-zeus1_1</option>
+<option name='config' value="WL11-integracionGNF-weblogic-zeus1_2">WL11-integracionGNF-weblogic-zeus1_2</option>
+<option name='config' value="WL11-integracionGNF-weblogic-zeus1_3">WL11-integracionGNF-weblogic-zeus1_3</option>
+</select>
+<input type='button' name='LaunchStats' value='Stats' onclick='document.stat.submit();'>
+</form>
+</body>
+</html>

@@ -1,0 +1,193 @@
+---
+# This playbook contains yavire agent actions that will be run on "remote" host.
+
+- stat: path={{ yavire_directory }}/agent
+  register: yavire_install
+
+- name: Ansible fact for Server Architecture
+  debug:
+    msg: "{{ ansible_architecture }}"
+
+
+- name: Ansible fact for ansible_distribution
+  debug:
+    msg: "{{ ansible_distribution }}"
+  
+- name: Ansible fact for ansible_os_family
+  debug:
+    msg: "{{ ansible_os_family }}"
+  
+- name: Ansible fact for ansible_distribution_major_version 
+  debug:
+    msg: "{{ ansible_distribution_major_version }}"
+
+
+
+- block:
+ 
+  - set_fact:
+      server_arch: "{{ ansible_architecture }}"
+      
+
+  #https://stackoverflow.com/questions/18839509/where-can-i-get-a-list-of-ansible-pre-defined-variables
+  - name: Ansible fact for Server Architecture
+    debug:
+      msg: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+
+
+  - name: Ansible fact for Server Architecture
+    debug:
+      msg: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+
+  - name: Copy {{ role_path }}/files/yavireAgentLINUX-version2.1-{{server_arch}}.tar to {{ yavire_directory }}
+    copy:
+      src: "{{ role_path }}/files/yavireAgentLINUX-version2.1-{{server_arch}}.tar"
+      dest: "{{ yavire_directory }}"
+
+  - name: Extract yavireAgentLINUX-version2.1-{{server_arch}}.tar 
+    unarchive:
+      src: "{{ yavire_directory }}/yavireAgentLINUX-version2.1-{{server_arch}}.tar"
+      dest: "{{ yavire_directory }}"
+      remote_src: yes
+
+  - name: Extract java 
+    unarchive:
+      src: "{{ yavire_directory }}/agent/java.tar"
+      dest: "{{ yavire_directory }}/agent"
+      remote_src: yes
+  
+  - name: Removing java.tar
+    file:
+      path: "{{ yavire_directory }}/agent/java.tar"
+      state: absent
+
+
+  - name: Change permissions 
+    file: 
+      dest: "{{ yavire_directory }}/agent"
+      owner: "{{ yavire_user }}"
+      group: "{{ yavire_group }}"
+      mode: 0775
+      recurse: yes
+
+  - name: Removing yavireAgentLINUX-version2.1-{{server_arch}}.tar
+    file:
+      path: "{{ yavire_directory }}/yavireAgentLINUX-version2.1-{{server_arch}}.tar"
+      state: absent
+    
+
+  # Only execute the above task block if we don't already have a yavire install directory
+  when: yavire_install.stat.exists == False
+
+
+- stat: path={{ yavire_directory }}/agent
+  register: yavire_install
+
+
+- block:
+
+# Create either a systemd or an upstart configuration file
+# for the yavire agent service -- hopefully not both
+
+  - name: Ansible fact for Server Architecture
+    debug:
+      msg: "ES CENTOS MAYOR DE 7, CREAMOS EL SERVICE "
+
+  - name: INIT | Crude Check for systemd
+    stat: path=/usr/lib/systemd
+    register: systemd_installed
+
+  - name: INIT | Create systemd unit file
+    template: 
+      src: tomcat.service
+      dest: /etc/systemd/system/yavire-agent.service
+    notify:
+      - reload systemd
+    when: systemd_installed.stat.exists
+  
+  - name: YAVIRE | Yavire should be running, and enabled at boot
+    service: 
+      name: yavire-agent
+      state: started
+      enabled: yes
+
+  when: ansible_distribution == "Ubuntu" or ( ansible_os_family == "RedHat" and ansible_distribution_major_version|int|abs >= 7 )
+
+- block:
+
+  - name: Ansible fact for Server Architecture
+    debug:
+      msg: "ES CENTOS MENOR DE 7, CREAMOS EL SERVICE "
+ 
+  - name: INIT | Crude Check for systemd
+    stat: path=/etc/rc.d/init.d
+    register: systemd_installed
+
+  - name: INIT | Create /etc/rc.d/init.d unit file
+    template: 
+      src: agent-service-centos6x.service
+      dest: /etc/rc.d/init.d/yavire-agent
+      mode: 0775
+    #notify:
+    #  - start yav-agent
+    when: systemd_installed.stat.exists
+  
+  - name:  service yavire-agent start
+    command:  service yavire-agent start
+    when: systemd_installed.stat.exists
+
+  - name:  chkconfig yavire-agent on
+    command:  chkconfig yavire-agent on
+    when: systemd_installed.stat.exists
+  
+
+  when: (ansible_os_family == "RedHat" and ansible_distribution_major_version|int|abs < 7 )
+
+
+
+- name: "wait for Yavire Agent to come up with http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:57020/yavire/jsps/yavireTest.jsp"
+  uri:
+    url: "http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:57020/yavire/jsps/yavireTest.jsp"
+    status_code: 200
+    return_content: yes
+    validate_certs: False
+  register: result
+  until: result.status == 200
+  #until: result | succeeded
+  retries: 10
+  delay: 5
+
+- name: Execute installYavireAgent.pl script
+  block:
+    - name : Execute Weekly Inventory
+      command: "{{ yavire_directory }}/agent/scripts/inventory/yavireWeeklyInventory.sh"
+      register: yav_weekly
+
+    - name : Execute Daily Inventory
+      command: "{{ yavire_directory }}/agent/scripts/inventory/yavireDailyInventory.sh"
+      register: yav_daily
+
+
+    - debug: msg="{{ yav_weekly.stdout }}"
+
+  become: yes
+  become_user: "{{ yavire_user }}"
+
+  when: yavire_install.stat.exists == True
+
+- name: Change permissions 
+  file: 
+    dest: "{{ yavire_directory }}/agent/inventory"
+    owner: "{{ yavire_user }}"
+    group: "{{ yavire_group }}"
+    mode: 0775
+    recurse: yes
+  tags:
+    - copy-source
+
+
+
+
+    
+
+ 
