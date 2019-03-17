@@ -1,0 +1,26 @@
+# Systemd unit file for tomcat
+[Unit]
+Description=Apache Tomcat Web Yavire Agent
+After=syslog.target network.target
+
+[Service]
+Type=forking
+
+Environment=JAVA_HOME={{ yavire_directory }}/agent/java/jre
+Environment=CATALINA_PID={{ yavire_directory }}/agent/yavire-agent/temp/tomcat.pid
+Environment=CATALINA_HOME={{ yavire_directory }}/agent/yavire-agent
+Environment=CATALINA_BASE={{ yavire_directory }}/agent/yavire-agent
+Environment='CATALINA_OPTS=-Xms512M -Xmx512M -server -XX:+UseParallelGC'
+Environment='JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom'
+
+ExecStart={{ yavire_directory }}/agent/yavire-agent/bin/startup.sh
+ExecStop=/bin/kill -15 $MAINPID
+
+User={{ yavire_user }}
+Group={{ yavire_group }}
+UMask=0007
+RestartSec=10
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

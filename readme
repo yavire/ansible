@@ -1,0 +1,60 @@
+#INSTALACION DEL SERVIDOR MASTER - TEST INTEGRACION3
+
+#Para inventarios dinámicos, necesitamos
+    - ansible
+    - Python
+    - sudo yum install -y python python-dev python-pip
+    - sudo pip install --upgrade pip
+    - pip install boto
+    - 
+
+    Se necesita las credenciales AWS, se puede pasar el profile como parámetro
+
+Ejecutar:
+    cd /home/yavire/devops/ansible/development/yavire/inventories
+    ./ec2.py --list
+
+    Ejemplo:
+    ansible -i ec2.py -m ping eu-west-1
+
+    AWS_PROFILE=prod ansible-playbook -i ec2.py myplaybook.yml
+
+
+# Ejemplo para testar un nodo remoto
+ansible all -m ping -i inventories/development/hosts --limit 'dvyavubuntu'
+
+#Instalar el agente yavire en un servidor concreto
+ansible-playbook -i inventories/development/hosts --limit 'dvyavtest1' --ask-become-pass -u yavire yavire-agent-servers.yml
+
+fatal: [dvyavtest1]: FAILED! => {"changed": false, "module_stderr": "Shared connection to 192.168.11.200 closed.\r\n", 
+"module_stdout": "\r\nyavire is not in the sudoers file.  
+This incident will be reported.\r\n", "msg": "MODULE FAILURE\nSee stdout/stderr for the exact error", "rc": 1}
+
+Solucion:
+
+centos 7:
+usermod -aG wheel yavire
+
+centos 6:
+Add in visudo
+    yavire ALL=(ALL) ALL
+
+fatal: [pfyavap02]: UNREACHABLE! => {"changed": false, "msg": "Failed to connect to the host via ssh: Permission denied (publickey,gssapi-keyex,gssapi-with-mic,password).", "unreachable": true}
+
+Solución: Comprobar que el usuario yavire del servidor tiene la clave publica en authorized_keys
+
+
+
+fatal: [devyav01]: UNREACHABLE! => {"changed": false, "msg": "Failed to connect to the host via ssh: Warning: Permanently added '192.168.11.133' (ECDSA) to the list of known hosts.\r\nPermission denied (publickey,gssapi-keyex,gssapi-with-mic,password).\r\n", "unreachable": true}
+
+Solucion:
+
+chmod 755 ~/.ssh
+chmod 644 ~/.ssh/authorized_keys
+
+Error: sudo: sorry, you must have a tty to run sudo (centos 6.X)
+
+Solución:
+
+Modificar en destino el /etc/sudoers y añadir Defaults:yavire !requiretty
+

@@ -1,0 +1,8 @@
+---
+    # Variables listed here are applicable to "setup" role
+     
+    yavire_user: yavagent
+    yavire_group: yavire
+    yavire_directory: /opt/krb/yavire
+    yavire_version: 2.01
+  

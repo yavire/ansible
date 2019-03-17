@@ -1,0 +1,356 @@
+#!/usr/bin/perl
+
+#Parametros pasados
+ #Parametro 1. dir origen del pase 
+ #ejem1: /soflib00/instalaciones/delta/produccion/Batch
+ 
+ ###NO SE UTILIZA PUES POR AHORA NO TIENE SENTIDO
+ #Parametro 2. 0 ó 1 Esto indica si se copia en desde "entregables" a "instalaciones" 
+ #ejem2: copia de /soflib00/entregables/zeus/produccion/batch a /soflib00/instalaciones/zeus/produccion/batch
+ 
+ 
+# print "LINEA 12\n";
+ 
+#Tareas del script:
+ #1.Crea hasta un máximo de cinco copias de seguridad en  /soflib00/instalaciones/NomProyecto/copiasIntegracion o copiasProduccion según corresponda.
+ #2.Copia lo existente en instalaciones en producción. 
+
+
+#Control de errores ###COMPRUEBA ESTO
+ #exit 1 Parametros pasados de forma incorrecta. 
+ #exit 2 El directorio ha ser integracion o produccion, y no es ninguno de ambos
+ #exit 3 No existe uno de los directorios a copiar de instalaciones a la copia de seguridad
+ #exit 4 No existe uno de los directorios a copiar de integracion a produccion
+
+#Definición de variables
+$nv=5; #Numero de versiones a mantener
+$copias_int="copiasIntegracion";
+$copias_prod="copiasProduccion";
+$DIR_ORI_DISTRI = $ARGV[0];
+$ESPEJO = $ARGV[1]; #ESPEJO 1, NO ESPEJO 0
+#$FLAG = $ARGV[1];
+$fich_logs="/opt/krb/yavire/agent/log/yavirePaseBackupIntProd.log";
+#$entregables="entregables"; #Definición del directorio
+
+#################################################CUERPO SCRIPT#############################################################
+
+#Se abre el fichero para guardar los logs
+open(LOGS,">>$fich_logs") || die "problemas abriendo fichero de log $fich_logs\n";
+
+#Comprueba que lo que se pasa como parametro es valido.
+#if (($DIR_ORI_DISTRI eq  "") or (($FLAG ne "0") and ($FLAG ne "1"))) {
+#	print "ERROR: Se le ha de pasar como parametro el directorio inicial\n";
+#	print "y el flag 0 o 1 que indica si se copia el directorio\n";
+#	exit 1; 
+#}#fin
+
+if ($DIR_ORI_DISTRI eq  "")  {
+	print "ERROR: Se le ha de pasar como parametro el directorio inicial\n";
+	exit 1; 
+}#fin
+
+#BORRA TODAS LAS COPIAS DE LA QUINTA EN ADELANTE.
+#En este script el directorio pasado en $DIR_ORI_DISTRI SIEMPRE va a ser producción, por tanto la copia se guarda en copiasProduccion.
+$intprod="produccion";
+$copias="copiasProduccion";
+@dir_raiz = split(/produccion/, $DIR_ORI_DISTRI);
+
+############################################################SE TRATA DIR_ORI_DISTRI###################################
+#Si el dir_ori es del tipo /soflib00/instalaciones/bdmgen/produccion/batch/* se elimina el final y se deja 
+#/soflib00/instalaciones/bdmgen/produccion/batch
+
+$DIR_ORI_DISTRI =~ s/\/\*$//; #Elimina /* al final del directorio si lo hubiera
+
+############################################################SE GESTIONA EL BACKUP AL DIRECTORIO DE VERSIONES###################################
+
+if (-e $DIR_ORI_DISTRI) {
+	#Se hace el backup si existe el directorio $DIR_ORI_DISTRI en instalaciones
+	$dir_copias="$dir_raiz[0]$copias";
+	#print "entra en e backup \n"; 
+	#Configura la fecha y hora para el log y salida de pantalla
+	$datelog=&formatofecha_log(time);
+	print LOGS "\n\nPase de programas Backup, Fecha: $datelog\n";
+	
+	#Crea el directorio version en el directorio copias$intprod
+	$date=&formatofecha(time);
+	$dir=$dir_raiz[1];
+	$dir_date="${dir_copias}$dir_raiz[1]_${date}";
+
+	#Comprueba si existe en el directorio copias$intprod todos los directorios anteriores al último y en caso contrario lo crea.
+	#Doy por supuesto que los cuatro primeros directorios existen.
+	@directorio_date = split(/\//, $dir_date); 
+	$base=$dir_copias;
+	for($i = 5; $i <= $#directorio_date; $i++) {
+		#print "base $i =$base\n";
+		$base="${base}\/$directorio_date[$i]";
+		`mkdir "$base"` unless -e $base;
+		`chmod 700 $base`;
+	}#for
+	#print "despues de crear directorio\n";	
+	#Copia de \software\instalaciones\zeus\integracion\iis pasado como parametro ($DIR_ORI_DISTRI) a $dir_date
+	$dir_ori="${DIR_ORI_DISTRI}/\*";
+	
+	opendir(DIR_ORI_DISTRI,$DIR_ORI_DISTRI) || die("No puede abrir el directorio $dirname");
+        @cont_ori_distri = readdir(DIR_ORI_DISTRI);  
+        closedir(DIR_ORI_DISTRI);
+        #print "cont_ori_distri=@cont_ori_distri\n";
+        print LOGS "dir_ori=$dir_ori \n";
+        print LOGS "dir_date=$dir_date \n";
+        #print "Antes de la copia\n";
+        if ($#cont_ori_distri > 1) {
+        	#print "antes de la copia cp -rp $dir_ori $dir_date\n";
+		$salida=`cp -rp $dir_ori $dir_date 2>&1`;
+		if ($salida=~ /No such/i) {
+		 	print "\nERROR: $salida\n";
+		 	print LOGS "\nERROR: $salida\n";
+		 	
+		 } else  {		
+			print LOGS "\nSe realizado la copia del directorio $DIR_ORI_DISTRI\n";
+			print LOGS "Al directorio $dir_date\n\n";	
+		  	#print "\nSe ha realizado la copia del directorio $DIR_ORI_DISTRI\n";
+		 	#print "Al directorio $dir_date\n\n";	
+		 }
+	}#if
+	 	
+	#Control de versiones dentro de copias$intprod
+	$dir_ori_distri_ant=$DIR_ORI_DISTRI;
+	#Control de versiones en copi$intprod
+	$dir_ori_distri_ant =~ s/\/[^\/]*$//; #Elimina el ultimo directorio
+	$dir_ori_distri_ant =~ s/produccion/copiasProduccion/i;
+	
+	opendir(IMD, $dir_ori_distri_ant) || die("No puede abrir el directorio $dir_ori_distri_ant");
+	@cont = readdir(IMD);	 	
+	
+	#Se filtra dejandose solo el contenido de aquellos directorios que tengan _numero
+	foreach (@cont) {
+		$dir=$_;
+		push (@conte,$dir) if ($dir=~ /\_[0-9]+$/);	
+	}#foreach
+
+	@contenido = sort @conte;
+	
+	#Borra todas las versiones a partir de la cuarta	
+	for($i = 0; $i <= $#contenido - $nv ; $i++) {
+		#Borra cada directorio	
+		$file = "$dir_ori_distri_ant\/$contenido[$i]";		
+		&full_rmdir($file);
+		#print "\nBorra: $file \n ";
+		print LOGS "\nBorra: $file \n ";					
+	}#for
+		
+	closedir(IMD);	
+	
+} else {
+	#SE CREA TODO EL DIRECTORIO DE instalaciones
+	#No existe el directorio $DIR_ORI_DISTRI, es decir no existe el directorio en instalaciones.produccion y se debe crear
+	#pero no hacer un backup de él en copias$intprod, al no existir antes.
+	
+	#Se crea de forma recursiva el directorio pues puede tener más de uno debajo de $intprod
+	#Doy por supuesto que los cuatro primeros directorios existen.
+	$dir_intprod="$dir_raiz[0]$intprod";
+	$base=$dir_intprod;
+	@directorio = split(/\//, $DIR_ORI_DISTRI);
+	for($i = 5; $i <= $#directorio; $i++) {
+		$base="${base}\/$directorio[$i]";
+		`mkdir "$base"` unless -e $base;
+		`chmod 700 $base`;
+	}#for
+	print LOGS "Se ha creado el directorio $DIR_ORI_DISTRI \n";
+	#print "\n Se ha creado el directorio $DIR_ORI_DISTRI \n";	
+}
+
+############################################################FIN DE LA GESTION DEL BACKUP AL DIRECTORIO DE VERSIONES###################################
+
+
+###############################################COPIA DE INSTALACIONES.INTEGRACION A INSTALACIONES.PRODUCCION################################################
+#ejemplo: copia de /soflib00/instalaciones/delta/integracion/Batch a /soflib00/instalaciones/delta/produccion/Batch
+
+#print LOGS "Se confia la copia de entregables a instalaciones\n";
+#print "Se confia la copia de entregables a instalaciones\n";
+#Halla cada uno de los subdirectorios de origen del pase tras fragmentarlos
+#pasa como parametro el directorio origen del pase al script ejem: /soflib00/instalaciones/delta/integracion/Batch/lib
+	#							   /soflib00/instalaciones/delta/produccion/Batch/lib
+	
+$dir_integracion="$DIR_ORI_DISTRI";
+$dir_integracion =~ s/produccion/integracion/i;
+$dir_produccion="$DIR_ORI_DISTRI";
+
+opendir(DIR_ORI_DISTRI,$DIR_ORI_DISTRI) || die("No puede abrir el directorio $DIR_ORI_DISTRI");
+@cont_ori_distri = readdir(DIR_ORI_DISTRI);  
+closedir(DIR_ORI_DISTRI);
+#print LOGS "cont_ori_distri=@cont_ori_distri cont_ori_distri=$#cont_ori_distri\n";
+print LOGS "ESTOY EN EL SCRIPT ESPEJO $ESPEJO \n";
+
+#Si es espejo se ha de borrar ANTES lo que haya en instalaciones.produccion
+	if ($ESPEJO == 1) {
+		$salida=`rm -r $dir_produccion/* 2>&1`;
+		#print LOGS "ENTRA EN ESPEJO\n";
+		if ($salida=~ /error/i) {
+	 	print "\nERROR: $salida\n";
+	 	print LOGS "\nERROR: $salida\n";
+	 	} else  {		
+			print LOGS "Se borra $dir_produccion/*\n";
+	 	}#if
+	}#if	
+
+if ($#cont_ori_distri > 0) {
+
+#print LOGS "dir_integracion= ${dir_integracion} \n";
+#print LOGS "dir_produccion= $dir_produccion \n";
+
+	$salida=`cp -rp ${dir_integracion}/\* $dir_produccion 2>&1`;
+	if ($salida=~ /No such/i) {
+		 	print "ERROR: No existe uno de los directorios a copiar de integracion a produccion\n";
+		 	print LOGS "ERROR: No existe uno de los directorios a copiar de integracion a produccion\n";
+		 	exit 4;
+		 } else  {
+		  	#print "\nSe copia desde $dir_integracion\n";
+			#print "a $dir_produccion \n";
+			print LOGS "\nSe copia desde $dir_integracion\n";
+			print LOGS "a $dir_produccion \n";
+	}#ifelse	
+}#if	
+
+print LOGS "--------------------------------------------------------\n\n";	
+#############################################################FIN COPIA DE ENTREGABLES A INSTALACIONES##########################################
+
+close LOGS;
+#####################################################
+#										RUTINAS
+#####################################################
+#
+sub formatofecha_log {
+	local($fechaseg) = $_[0];
+	local(@meses) = ("Jan","Feb","Mar","Apr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dec");
+	local(@meses) = ("01","02","03","04","05","06","07","08","09","10","11","12");
+	local(@dias) = ("Lun","Mar","Mie","Jue","Vie","Sab","Dom");
+	local(@fecha) = localtime($fechaseg);
+	local($mes) = $meses["$fecha[4]"];
+	#local($mes) = $fecha[4]+ 1;
+	local($year) = $fecha[5] + 1900;
+	local($diasemana) = $dias[--$fecha[6]]; 
+	local($dia) = sprintf ("%2.2d", $fecha[3]);
+	local($hour) = sprintf ("%2.2d", $fecha[2]);
+	local($min) = sprintf ("%2.2d", $fecha[1]);
+	local($sec) = sprintf ("%2.2d", $fecha[0]);
+	#my $fecha= "$diasemana $mes $dia $hour:$min:$sec $year";
+	#local($fecha)= "$mes $dia $hour:$min:$sec";
+	local($fecha)= "$dia/$mes/$year $hour:$min:$sec";
+	return $fecha;
+}
+
+
+sub formatofecha {
+	local($fechaseg) = $_[0];
+	local(@meses) = ("Jan","Feb","Mar","Apr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dec");
+	local(@meses) = ("01","02","03","04","05","06","07","08","09","10","11","12");
+	local(@dias) = ("Lun","Mar","Mie","Jue","Vie","Sab","Dom");
+	local(@fecha) = localtime($fechaseg);
+	local($mes) = $meses["$fecha[4]"];
+	#local($mes) = $fecha[4]+ 1;
+	local($year) = $fecha[5] + 1900;
+	local($diasemana) = $dias[--$fecha[6]]; 
+	local($dia) = sprintf ("%2.2d", $fecha[3]);
+	local($hour) = sprintf ("%2.2d", $fecha[2]);
+	local($min) = sprintf ("%2.2d", $fecha[1]);
+	local($sec) = sprintf ("%2.2d", $fecha[0]);
+	#my $fecha= "$diasemana $mes $dia $hour:$min:$sec $year";
+	#local($fecha)= "$mes $dia $hour:$min:$sec";
+	local($fecha)= "${year}${mes}${dia}_$hour$min";
+	return $fecha;
+}
+
+
+sub full_rmdir_old {
+        local($dirname) = $_[0];
+        #parametro pasado="D:\\software\\instalaciones\\zeus\\copia\\v8";
+        
+        
+        print "cont=@cont\n";        
+         
+         if (&dir_vacio($dirname) == 0 ) {
+         print "ENTRA EN IF dirname= $dirname\n";
+         $k3="D:\\software\\instalaciones\\zeus\\copia\\v10";
+         rmdir ("$k3");
+         #rmdir ("$dirname");
+         
+         exit 0;
+         }else {
+         opendir(DIR,$dirname) || die("No puede abrir el directorio $dirname");
+        local(@cont) = readdir(DIR);  
+         for ($i=2; $i<=$#cont; $i++) {      	
+            #next if ($cont[$i] == '.' || $cont[$i] == '..');
+            #print "ENTRO AQUI\n";
+            $file = "$dirname\\$cont[$i]";
+            #print "file=$file\n";
+            if (-d $file){
+	            	print "$file es un directorio, se llama la recursividad\n";
+	            	
+	            	exit 0;
+	            	$dev=&dir_vacio($file);
+	            	print "dir_vacio: DEVUELVE $dev\n";
+	            	
+	            	if (&dir_vacio($file) == 0 ) {
+	            		print "DESPUES DE MIRAR si file $file Y ES VACIO\n";
+	            		rmdir ("$file");
+	            		#$kk="D:\\software\\instalaciones\\zeus\\copia\\version5";
+	            		#rmdir ("$kk");
+	            		
+	            		$sal = rmdir("$file"); #directorio vacio??
+	            		print "sal=$sal\n";
+	            		
+	            		
+	            	}else {
+	            	#directorio no está vacio
+	            	print "DESPUES DE MIRAR si file $file Y NO NO NO NO ES VACIO\n";
+	            	
+	            	&full_rmdir($file);
+	            	
+	            	}#if-else
+				
+            }else{
+             	print "$file es un archivo";
+             	$sal = unlink($dir); 
+             	print "sal=$sal borra el fichero $file\n";
+            }#if
+            
+         }#for  
+
+         }
+               
+         closedir(DIR);
+
+#$ENV{'computername'}
+
+#Comprueba si hay cinco versiones, y si así borro la primera, y siempre creo la actual  	
+    
+} #full_rmdir_old
+
+
+
+sub full_rmdir {
+	local($dirname) = $_[0];
+	$dirname =~ s/\s$//;
+	#print "Se procede a borrar el directorio ${dirname}fin\n";
+	`rm -r "$dirname"`;
+	
+}#full_rmdir
+
+#Indica si el directorio está vacio
+sub dir_vacio {
+	local($dirname) = $_[0];
+	opendir(DIR, $dirname) || die("No puede abrir el directorio $dirname");
+        local(@cont) = readdir(DIR);  
+        
+        #print "ENTRA EN dir_vacio\n";
+        if ($#cont < 2 ) {
+        	#Está vacio
+        	print "dirname=$dirname esta vacio\n";
+        	return 0;
+        } else {
+        	print "dirname=$dirname NO esta vacio\n";
+        	return 1;
+        }
+	close DIR;
+
+}#sub dir_vacio

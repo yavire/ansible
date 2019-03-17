@@ -1,0 +1,14 @@
+---
+# This playbook contains all actions that will be run on "local" host.
+  
+# sudo apt-get update
+#- name: Update apt packages
+#  apt:
+#    update_cache: yes
+#  tags:
+#    - system
+  
+# Import yavire agent tasks
+- name: Create Yavire User Agent
+  include_tasks: yavire-agent.yml
+  

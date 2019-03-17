@@ -1,0 +1,129 @@
+---
+# This playbook contains yavire agent actions that will be run on "remote" host.
+
+- stat: path={{ yavire_directory }}/monitoring
+  register: yavire_install
+
+
+- name:  Install basic packages
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - wget
+    - unzip
+    - zip
+    - nano
+    - curl
+
+- block:
+ 
+  - set_fact:
+      server_arch: "{{ ansible_architecture }}"
+
+  - name: Ansible fact for Server Architecture
+    debug:
+      msg: " {{ ansible_architecture }}"
+
+  - name: Copy {{ role_path }}/files/yavireMonitoringLINUX-version2.1-{{server_arch}}.tar to {{ yavire_directory }}
+    copy:
+      src: "{{ role_path }}/files/yavireMonitoringLINUX-version2.1-{{server_arch}}.tar"
+      dest: "{{ yavire_directory }}"
+
+  - name: Extract yavireMonitoringLINUX-version2.1-{{server_arch}}.tar 
+    unarchive:
+      src: "{{ yavire_directory }}/yavireMonitoringLINUX-version2.1-{{server_arch}}.tar"
+      dest: "{{ yavire_directory }}"
+      remote_src: yes
+
+  - name: Extract java 
+    unarchive:
+      src: "{{ yavire_directory }}/monitoring/java.tar"
+      dest: "{{ yavire_directory }}/monitoring"
+      remote_src: yes
+  
+  - name: Removing java.tar
+    file:
+      path: "{{ yavire_directory }}/monitoring/java.tar"
+      state: absent
+
+
+  - name: Change permissions 
+    file: 
+      dest: "{{ yavire_directory }}/monitoring"
+      owner: "{{ yavire_user }}"
+      group: "{{ yavire_group }}"
+      mode: 0775
+      recurse: yes
+
+  - name: Removing yavireMonitoringLINUX-version2.1-{{server_arch}}.tar
+    file:
+      path: "{{ yavire_directory }}/yavireMonitoringLINUX-version2.1-{{server_arch}}.tar"
+      state: absent
+    
+
+  # Only execute the above task block if we don't already have a yavire install directory
+  when: yavire_install.stat.exists == False
+
+
+# Block for yavire Monitoring updating
+- block:
+  - name: Update monitoring java classes
+    synchronize:
+       src: /home/yavire/yavire/instalaciones/version2.1/fuentes/monitoring/bin
+       dest: "{{ yavire_directory }}/monitoring"
+
+  - name: Update inventory java libs
+    synchronize:
+       src: /home/yavire/yavire/instalaciones/version2.1/fuentes/monitoring/lib
+       dest: "{{ yavire_directory }}/monitoring"
+
+  - name: Update inventory java scripts
+    synchronize:
+       src: /home/yavire/yavire/instalaciones/version2.1/fuentes/monitoring/scripts
+       dest: "{{ yavire_directory }}/monitoring"
+
+  - name: Update inventory java scripts
+    synchronize:
+       src: /home/yavire/yavire/instalaciones/version2.1/fuentes/monitoring/install
+       dest: "{{ yavire_directory }}/monitoring"
+
+
+  - name: Change permissions 
+    file: 
+      dest: "{{ yavire_directory }}/monitoring"
+      owner: "{{ yavire_user }}"
+      group: "{{ yavire_group }}"
+      mode: 0775
+      recurse: yes
+
+# Only execute the above task block if we  already have a yavire install directory
+  when: yavire_install.stat.exists == True
+
+- stat: path={{ yavire_directory }}/monitoring
+  register: yavire_install
+
+
+#- name: Execute installYavireAgent.pl script
+#  block:
+#    - name : Execute Weekly Inventory
+#      script: "{{ yavire_directory }}/agent/scripts/inventory/yavireWeeklyInventory.sh"
+#      register: yav_weekly
+
+#    - name : Execute Daily Inventory
+#      script: "{{ yavire_directory }}/agent/scripts/inventory/yavireDailyInventory.sh"
+#      register: yav_daily
+
+#    - debug: msg="{{ yav_weekly.stdout }}"
+
+#  become: yes
+#  become_user: "{{ yavire_user }}"
+
+#  when: yavire_install.stat.exists == True
+
+
+
+
+    
+
+ 
