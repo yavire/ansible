@@ -1,0 +1,44 @@
+#!/bin/bash
+# chkconfig: 2345 95 05
+#/etc/rc.d/init.d/yavire-agent
+
+# Source function library.
+. /etc/init.d/functions
+
+
+YAVIRE_USER=yavagent
+
+
+start() {
+        echo -n "Starting yavire agent... "
+        su - $YAVIRE_USER -c "/opt/krb/yavire/agent/scripts/agent/yavireStartAgent.sh" &
+        return 0
+}
+
+stop() {
+        echo -n "Shutting down yavire agent... "
+        su - $YAVIRE_USER -c "/opt/krb/yavire/agent/scripts/agent/yavireStopAgent.sh" &
+        return 0
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    reload)
+        ;;
+    *)
+        echo "Usage: yavire {start|stop|status|reload|restart}"
+ exit 1
+        ;;
+esac
+exit $?

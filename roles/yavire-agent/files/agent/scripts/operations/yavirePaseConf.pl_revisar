@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+
+#Version 3.0.0.0.0
+$DirectorioEntregaPase=$ARGV[0];
+$DirectorioPase=$ARGV[1];
+$PaseMirror=$ARGV[2];
+$Backup=$ARGV[3];
+$CopiaEntregasAintermedio=$ARGV[4];
+$NumIncidencia=$ARGV[5];
+$NomPase=$ARGV[6];
+$Dominio=$ARGV[7];
+
+$FichDirAtransformar="ALL";
+
+$salida=qx(/opt/openweb/scripts/openWebPaseBackupUnix.pl "$DirectorioEntregaPase" "$DirectorioPase" "$PaseMirror" "$Backup" "$CopiaEntregasAintermedio" "$NumIncidencia" "$NomPase" "$Dominio");
+print "openWebPaseBackupUnix.pl devuelve: $salida\n";
+
+#Halla el fichero variables
+@dir_ori_pase_troceado = split (/\//,$DirectorioPase);
+$temp=pop(@dir_ori_pase_troceado); 
+$path_fich_variables=join('/', @dir_ori_pase_troceado);
+$fichVar="${path_fich_variables}/${NomPase}_${Dominio}.variables"; #(($dir_ori_pase)-ultimo directorio)/($pase)_($dominio).variables 
+unless (-e $fichVar ) { 
+	print "ERROR: El fichero $fichVar de variables no existe\n";
+	exit 1; 
+}#unless
+
+$salida=qx(/opt/openweb/scripts/openWebConfVariables.pl "$DirectorioPase" "$fichVar" "$FichDirAtransformar");
+print "openWebConfVariables.pl devuelve: $salida\n";

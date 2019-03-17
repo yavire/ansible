@@ -1,0 +1,11 @@
+---
+# This playbook sets up whole stack.
+  
+- name: Configurations to "remote" host
+  hosts: all
+  become: yes
+  become_user: root
+  become_method: sudo
+  roles:
+    - yavire-common
+    - yavire-agent
