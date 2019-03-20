@@ -53,7 +53,7 @@ use lib  '/opt/krb/yavire/agent/scripts';
 #* Definición de variables
 #*===========================================================
 
-$versionYV="2.2.0.5";
+$versionYV="2.2.0.6";
 $ficheroInventario="yavireInv_server.data";
 
 ($fecha) =  yavireUnix::formatoFechaLog();
