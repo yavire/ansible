@@ -6,7 +6,7 @@
 
 - name: Ansible fact for Server Architecture
   debug:
-    msg: "{{ ansible_architecture }}"
+    msg: "{{ go_arch }}"
 
 
 - name: Ansible fact for ansible_distribution
@@ -22,14 +22,14 @@
     msg: "{{ ansible_distribution_major_version }}"
 
 
-
 - block:
  
   - set_fact:
-      server_arch: "{{ ansible_architecture }}"
+      server_arch: "{{ go_arch }}"
       
 
   #https://stackoverflow.com/questions/18839509/where-can-i-get-a-list-of-ansible-pre-defined-variables
+  #yavagent-2.2.0.linux.amd64.tar.gz
   - name: Ansible fact for Server Architecture
     debug:
       msg: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
@@ -39,14 +39,27 @@
     debug:
       msg: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
 
-  - name: Copy {{ role_path }}/files/yavireAgentLINUX-version2.1-{{server_arch}}.tar to {{ yavire_directory }}
+
+  - name: Download yavire agent to local file (http://yavire.es/downloads/yavagent-{{ yavire_version }}.linux.{{ go_arch }}.tar.gz)
+    become: false
+    get_url:
+      url: "http://yavire.es/downloads/yavagent-{{ yavire_version }}.linux.{{ go_arch }}.tar.gz"
+      dest: "/tmp/yavagent-{{ yavire_version }}.linux.{{ go_arch }}.tar.gz"
+    register: _download_binary
+    until: _download_binary is succeeded
+    retries: 5
+    delay: 2
+    delegate_to: localhost
+    check_mode: false
+
+  - name: Copy /tmp/yavagent-{{ yavire_version }}.linux.{{ go_arch }}.tar.gz to {{ yavire_directory }}
     copy:
-      src: "{{ role_path }}/files/yavireAgentLINUX-version2.1-{{server_arch}}.tar"
+      src: "/tmp/yavagent-{{ yavire_version }}.linux.{{ go_arch }}.tar.gz"
       dest: "{{ yavire_directory }}"
 
-  - name: Extract yavireAgentLINUX-version2.1-{{server_arch}}.tar 
+  - name: Extract yavagent-{{ yavire_version }}.linux.{{ go_arch }}.tar.gz 
     unarchive:
-      src: "{{ yavire_directory }}/yavireAgentLINUX-version2.1-{{server_arch}}.tar"
+      src: "{{ yavire_directory }}/yavagent-{{ yavire_version }}.linux.{{ go_arch }}.tar.gz"
       dest: "{{ yavire_directory }}"
       remote_src: yes
 
@@ -70,9 +83,9 @@
       mode: 0775
       recurse: yes
 
-  - name: Removing yavireAgentLINUX-version2.1-{{server_arch}}.tar
+  - name: Removing yavagent-{{ yavire_version }}.linux.{{ go_arch }}.tar.gz
     file:
-      path: "{{ yavire_directory }}/yavireAgentLINUX-version2.1-{{server_arch}}.tar"
+      path: "{{ yavire_directory }}/yavagent-{{ yavire_version }}.linux.{{ go_arch }}.tar.gz"
       state: absent
     
 

@@ -4,5 +4,14 @@
     yavire_user: yavagent
     yavire_group: yavire
     yavire_directory: /opt/krb/yavire
-    yavire_version: 2.01
+    yavire_version: 2.2.0
+
+    go_arch_map:
+      i386: '386'
+      x86_64: 'amd64'
+      aarch64: 'arm64'
+      armv7l: 'armv7'
+      armv6l: 'armv6'
+
+    go_arch: "{{ go_arch_map[ansible_architecture] | default(ansible_architecture) }}"
   
